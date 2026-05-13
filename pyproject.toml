@@ -1,0 +1,13 @@
+[project]
+name = "bilibili-watchlater"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+    "bilibili-api-python>=16.3",
+    "typer>=0.15",
+    "rich>=13",
+    "qrcode>=7.4",
+]
+
+[project.scripts]
+bili-wl = "main:app"
