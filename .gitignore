@@ -1,3 +1,4 @@
 .venv
 __pycache__
 cli/__pycache__
+bash.exe.stackdump
