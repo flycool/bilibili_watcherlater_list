@@ -76,8 +76,7 @@ def qr_login(conn) -> Credential | None:
 
 def get_user_name(credential: Credential) -> str:
     try:
-        u = user.User(credential=credential)
-        info = asyncio.run(u.get_self_info())
+        info = asyncio.run(user.get_self_info(credential))
         return info.get("name", "未知")
     except Exception:
         return "未知"
