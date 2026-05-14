@@ -80,9 +80,14 @@ def clear_credentials(conn: sqlite3.Connection) -> None:
 
 def upsert_video(conn: sqlite3.Connection, v: dict) -> None:
     conn.execute("""
-        INSERT OR REPLACE INTO videos (aid, bvid, title, cover_url, duration,
+        INSERT INTO videos (aid, bvid, title, cover_url, duration,
             author_name, author_mid, added_at, ctime, fetched_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(aid) DO UPDATE SET
+            bvid=excluded.bvid, title=excluded.title, cover_url=excluded.cover_url,
+            duration=excluded.duration, author_name=excluded.author_name,
+            author_mid=excluded.author_mid, added_at=excluded.added_at,
+            ctime=excluded.ctime, fetched_at=excluded.fetched_at
     """, (
         v["aid"], v["bvid"], v["title"], v.get("cover_url", ""),
         v.get("duration", 0), v.get("author_name", ""), v.get("author_mid", 0),
