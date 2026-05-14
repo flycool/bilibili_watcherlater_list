@@ -1,804 +1,209 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bilibili Watch Later</title>
-<style>
-/* ── Reset & Variables ── */
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --bg:#0f0f14;--surface:#1a1a24;--surface-hover:#232336;--sidebar:#14141e;
-  --pink:#FB7299;--pink-glow:rgba(251,114,153,0.15);
-  --text:#e8e8ed;--text2:#9898a6;--text3:#5e5e6e;
-  --danger:#ff4d5a;--success:#00cc88;--warn:#ffa826;
-  --border:rgba(255,255,255,0.06);--radius:12px;--radius-sm:8px;
-  --font:system-ui,-apple-system,"Microsoft YaHei",sans-serif;
-  --mono:Consolas,"Courier New",monospace;
-  --card-w:264px;
-}
-body{
-  background:var(--bg);color:var(--text);font-family:var(--font);
-  height:100vh;overflow:hidden;user-select:none;
-}
-::-webkit-scrollbar{width:6px}
-::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:var(--text3);border-radius:3px}
-
-/* ── Pages ── */
-.page{display:none;height:100vh}
-.page.active{display:flex}
-
-/* ── Login Page ── */
-#login-page{
-  justify-content:center;align-items:center;
-  background:radial-gradient(ellipse at center, #1a1a2e 0%, var(--bg) 70%);
-}
-.login-card{
-  background:var(--surface);border:1px solid var(--border);border-radius:16px;
-  padding:48px 40px;text-align:center;width:400px;
-  box-shadow:0 20px 60px rgba(0,0,0,0.5);
-}
-.login-card h1{font-size:24px;font-weight:700;margin-bottom:4px}
-.login-card h1 span{color:var(--pink)}
-.login-card .sub{color:var(--text2);font-size:14px;margin-bottom:32px}
-.login-card .qr-wrap{
-  background:white;border-radius:12px;padding:16px;display:inline-block;
-  margin-bottom:20px;position:relative;
-}
-.login-card .qr-wrap img{width:200px;height:200px;display:block}
-.login-card .qr-wrap .expired{
-  position:absolute;inset:0;background:rgba(15,15,20,0.85);border-radius:12px;
-  display:none;flex-direction:column;justify-content:center;align-items:center;gap:12px;
-}
-.login-card .qr-wrap .expired.show{display:flex}
-.login-card .qr-wrap .expired span{color:var(--text);font-size:14px}
-.login-card .status-text{color:var(--text2);font-size:13px;min-height:20px}
-.login-card .status-text.done{color:var(--success)}
-.login-card .status-text.error{color:var(--danger)}
-
-/* ── Main Page Layout ── */
-#main-page{flex-direction:column}
-.topbar{
-  height:56px;background:var(--sidebar);border-bottom:1px solid var(--border);
-  display:flex;align-items:center;padding:0 20px;gap:16px;flex-shrink:0;
-}
-.topbar .logo{font-size:18px;font-weight:700;white-space:nowrap}
-.topbar .logo span{color:var(--pink)}
-.topbar .search-box{
-  flex:1;max-width:360px;position:relative;
-}
-.topbar .search-box input{
-  width:100%;height:36px;border-radius:18px;border:1px solid var(--border);
-  background:var(--surface);color:var(--text);padding:0 16px 0 38px;
-  font-size:13px;outline:none;transition:border-color 0.2s;
-}
-.topbar .search-box input:focus{border-color:var(--pink)}
-.topbar .search-box .icon{
-  position:absolute;left:12px;top:50%;transform:translateY(-50%);
-  color:var(--text3);font-size:14px;
-}
-.topbar .sort-select{
-  height:32px;border-radius:8px;border:1px solid var(--border);
-  background:var(--surface);color:var(--text);padding:0 8px;
-  font-size:12px;outline:none;cursor:pointer;
-}
-.topbar .btn{
-  height:32px;border-radius:8px;border:none;padding:0 14px;
-  font-size:12px;cursor:pointer;font-weight:600;white-space:nowrap;
-  transition:opacity 0.2s,transform 0.15s;
-}
-.topbar .btn:active{transform:scale(0.96)}
-.topbar .btn-sync{background:var(--pink);color:white}
-.topbar .btn-sync:hover{opacity:0.9}
-.topbar .btn-logout{background:transparent;color:var(--text2);border:1px solid var(--border)}
-.topbar .btn-logout:hover{color:var(--text)}
-.topbar .user-name{color:var(--text2);font-size:13px}
-.topbar .spacer{flex:1}
-
-.main-content{display:flex;flex:1;overflow:hidden}
-
-/* ── Sidebar ── */
-.sidebar{
-  width:240px;background:var(--sidebar);border-right:1px solid var(--border);
-  display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;
-}
-.sidebar .stats{
-  padding:20px 16px 12px;display:flex;gap:12px;
-  border-bottom:1px solid var(--border);
-}
-.sidebar .stats .stat{
-  text-align:center;flex:1;
-}
-.sidebar .stats .stat .num{font-size:22px;font-weight:700;color:var(--pink)}
-.sidebar .stats .stat .lbl{font-size:11px;color:var(--text3);margin-top:2px}
-.sidebar .tag-list{padding:12px 0;flex:1;overflow-y:auto}
-.sidebar .tag-item{
-  display:flex;align-items:center;gap:10px;padding:9px 16px;
-  cursor:pointer;transition:background 0.15s;font-size:13px;
-  border-left:3px solid transparent;
-}
-.sidebar .tag-item:hover{background:var(--surface)}
-.sidebar .tag-item.active{
-  background:var(--surface);border-left-color:var(--pink);color:var(--pink);
-}
-.sidebar .tag-item .dot{
-  width:8px;height:8px;border-radius:50%;flex-shrink:0;
-}
-.sidebar .tag-item .tag-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.sidebar .tag-item .count{color:var(--text3);font-size:11px}
-.sidebar .tag-item .del-tag{
-  display:none;color:var(--text3);font-size:14px;cursor:pointer;line-height:1;
-}
-.sidebar .tag-item:hover .del-tag{display:inline}
-.sidebar .tag-item .del-tag:hover{color:var(--danger)}
-.sidebar .add-tag{padding:16px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap}
-.sidebar .add-tag input{
-  flex:1;min-width:80px;height:32px;border-radius:8px;
-  border:1px solid var(--border);background:var(--surface);
-  color:var(--text);padding:0 10px;font-size:12px;outline:none;
-}
-.sidebar .add-tag input:focus{border-color:var(--pink)}
-.sidebar .add-tag .btn-add{
-  height:32px;padding:0 12px;border-radius:8px;border:none;
-  background:var(--pink);color:white;font-size:12px;font-weight:600;cursor:pointer;
-}
-
-/* ── Video Grid ── */
-.grid-area{flex:1;overflow-y:auto;padding:24px}
-.grid{
-  display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(264px,1fr));
-  gap:20px;
-}
-.video-card{
-  background:var(--surface);border-radius:var(--radius);
-  border:1px solid var(--border);overflow:hidden;
-  transition:transform 0.25s cubic-bezier(0.4,0,0.2,1),
-             box-shadow 0.25s cubic-bezier(0.4,0,0.2,1);
-  cursor:pointer;position:relative;
-}
-.video-card:hover{
-  transform:translateY(-4px);
-  box-shadow:0 12px 40px var(--pink-glow);
-}
-.video-card .cover{
-  position:relative;aspect-ratio:16/9;background:#1a1a2e;
-  overflow:hidden;
-}
-.video-card .cover img{
-  width:100%;height:100%;object-fit:cover;
-  transition:transform 0.3s;
-}
-.video-card:hover .cover img{transform:scale(1.05)}
-.video-card .cover .duration{
-  position:absolute;bottom:8px;right:8px;
-  background:rgba(0,0,0,0.75);color:white;
-  font-size:11px;padding:2px 6px;border-radius:4px;
-  font-family:var(--mono);
-}
-.video-card .cover .actions-overlay{
-  position:absolute;inset:0;background:rgba(0,0,0,0.5);
-  display:none;justify-content:center;align-items:center;gap:16px;
-}
-.video-card:hover .cover .actions-overlay{display:flex}
-.video-card .cover .actions-overlay .act-btn{
-  width:40px;height:40px;border-radius:50%;border:none;
-  background:white;color:#333;font-size:18px;cursor:pointer;
-  display:flex;justify-content:center;align-items:center;
-  transition:transform 0.15s,background 0.15s;
-}
-.video-card .cover .actions-overlay .act-btn:hover{transform:scale(1.15)}
-.video-card .cover .actions-overlay .act-btn.del:hover{background:var(--danger);color:white}
-.video-card .cover .actions-overlay .act-btn.tag:hover{background:var(--pink);color:white}
-.video-card .info{padding:12px}
-.video-card .info .title{
-  font-size:14px;font-weight:600;line-height:1.4;
-  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
-  overflow:hidden;margin-bottom:6px;color:var(--text);
-}
-.video-card .info .author{font-size:12px;color:var(--text2);margin-bottom:8px}
-.video-card .info .tag-chips{display:flex;flex-wrap:wrap;gap:4px}
-.video-card .info .tag-chips .chip{
-  font-size:10px;padding:2px 8px;border-radius:10px;
-  color:white;opacity:0.85;white-space:nowrap;
-}
-.video-card .info .bvid{
-  font-size:10px;color:var(--text3);font-family:var(--mono);margin-top:6px;
-}
-
-/* ── Toast ── */
-.toast-container{
-  position:fixed;top:20px;right:20px;z-index:9999;
-  display:flex;flex-direction:column;gap:8px;
-}
-.toast{
-  background:var(--surface);border:1px solid var(--border);border-radius:10px;
-  padding:12px 20px;font-size:13px;color:var(--text);
-  box-shadow:0 8px 24px rgba(0,0,0,0.4);
-  animation:slideIn 0.3s ease-out;
-  max-width:340px;
-}
-.toast.success{border-left:3px solid var(--success)}
-.toast.error{border-left:3px solid var(--danger)}
-.toast.info{border-left:3px solid var(--pink)}
-@keyframes slideIn{
-  from{transform:translateX(100%);opacity:0}
-  to{transform:translateX(0);opacity:1}
-}
-@keyframes fadeOut{
-  from{opacity:1}
-  to{opacity:0}
-}
-
-/* ── Modal ── */
-.modal-overlay{
-  display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);
-  z-index:100;justify-content:center;align-items:center;
-}
-.modal-overlay.show{display:flex}
-.modal{
-  background:var(--surface);border:1px solid var(--border);border-radius:16px;
-  padding:32px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto;
-}
-.modal h3{font-size:18px;margin-bottom:16px;color:var(--text)}
-.modal .tag-select{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
-.modal .tag-select .tag-opt{
-  padding:6px 14px;border-radius:20px;border:1px solid var(--border);
-  font-size:12px;cursor:pointer;color:var(--text2);
-  transition:all 0.15s;
-}
-.modal .tag-select .tag-opt:hover{border-color:var(--pink);color:var(--pink)}
-.modal .tag-select .tag-opt.on{background:var(--pink);border-color:var(--pink);color:white}
-.modal .btn-row{display:flex;gap:10px;justify-content:flex-end}
-.modal .btn-row .btn{
-  height:36px;border-radius:8px;border:none;padding:0 20px;
-  font-size:13px;cursor:pointer;font-weight:600;
-}
-.modal .btn-row .btn-cancel{background:var(--surface-hover);color:var(--text2)}
-.modal .btn-row .btn-danger{background:var(--danger);color:white}
-.modal .btn-row .btn-primary{background:var(--pink);color:white}
-
-/* ── Empty State ── */
-.empty-state{
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  padding:80px 20px;text-align:center;
-}
-.empty-state .icon{font-size:48px;margin-bottom:16px;opacity:0.3}
-.empty-state .msg{color:var(--text2);font-size:15px;margin-bottom:8px}
-.empty-state .sub{color:var(--text3);font-size:13px}
-
-/* ── Load More ── */
-.load-more{
-  display:flex;justify-content:center;padding:24px;
-}
-.load-more .btn-load{
-  height:36px;border-radius:20px;border:1px solid var(--border);
-  background:transparent;color:var(--text2);padding:0 28px;
-  font-size:13px;cursor:pointer;transition:color 0.2s,border-color 0.2s;
-}
-.load-more .btn-load:hover{color:var(--pink);border-color:var(--pink)}
-
-/* ── Spinner ── */
-@keyframes spin{to{transform:rotate(360deg)}}
-.spinner{animation:spin 0.8s linear infinite}
-</style>
-</head>
-<body>
-
-<!-- Login Page -->
-<div id="login-page" class="page active">
-  <div class="login-card">
-    <h1><span>Bili</span> Watch Later</h1>
-    <div class="sub">扫码登录B站账号</div>
-    <div class="qr-wrap" id="qr-wrap">
-      <img id="qr-img" src="" alt="QR Code" style="display:none">
-      <div class="expired" id="qr-expired">
-        <span>二维码已过期</span>
-        <button class="btn-refresh" onclick="refreshQR()" style="height:32px;border-radius:8px;border:none;background:var(--pink);color:white;padding:0 16px;cursor:pointer;font-size:12px">刷新二维码</button>
-      </div>
-    </div>
-    <div class="status-text" id="qr-status">正在生成二维码...</div>
-  </div>
-</div>
-
-<!-- Main Page -->
-<div id="main-page" class="page">
-  <!-- Top Bar -->
-  <div class="topbar">
-    <div class="logo"><span>稍后</span>再看</div>
-    <div class="search-box">
-      <span class="icon">🔍</span>
-      <input type="text" id="search-input" placeholder="搜索标题或UP主...">
-    </div>
-    <select class="sort-select" id="sort-select">
-      <option value="added">最近添加</option>
-      <option value="title">标题 A-Z</option>
-      <option value="author">UP主 A-Z</option>
-    </select>
-    <button class="btn btn-sync" onclick="doSync()">🔄 同步</button>
-    <div class="spacer"></div>
-    <span class="user-name" id="user-name-display"></span>
-    <button class="btn btn-logout" onclick="doLogout()">登出</button>
-  </div>
-
-  <!-- Main Content -->
-  <div class="main-content">
-    <!-- Sidebar -->
-    <div class="sidebar">
-      <div class="stats">
-        <div class="stat"><div class="num" id="stat-total">0</div><div class="lbl">稍后再看</div></div>
-        <div class="stat"><div class="num" id="stat-watched">0</div><div class="lbl">已观看</div></div>
-        <div class="stat"><div class="num" id="stat-tags">0</div><div class="lbl">标签</div></div>
-      </div>
-      <div class="tag-list" id="tag-list">
-        <div class="tag-item active" data-tag="" onclick="selectTag(this,'')">
-          <span class="dot" style="background:var(--pink)"></span>
-          <span class="tag-name">全部</span>
-          <span class="count" id="count-all">0</span>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Bilibili Watch Later</title>
+        <link rel="stylesheet" href="style.css" />
+    </head>
+    <body>
+        <!-- Login Page -->
+        <div id="login-page" class="page active">
+            <div class="login-card">
+                <h1><span>Bili</span> Watch Later</h1>
+                <div class="sub">扫码登录B站账号</div>
+                <div class="qr-wrap" id="qr-wrap">
+                    <img
+                        id="qr-img"
+                        src=""
+                        alt="QR Code"
+                        style="display: none"
+                    />
+                    <div class="expired" id="qr-expired">
+                        <span>二维码已过期</span>
+                        <button
+                            class="btn-refresh"
+                            onclick="refreshQR()"
+                            style="
+                                height: 32px;
+                                border-radius: 8px;
+                                border: none;
+                                background: var(--pink);
+                                color: white;
+                                padding: 0 16px;
+                                cursor: pointer;
+                                font-size: 12px;
+                            "
+                        >
+                            刷新二维码
+                        </button>
+                    </div>
+                </div>
+                <div class="status-text" id="qr-status">正在生成二维码...</div>
+            </div>
         </div>
-      </div>
-      <div class="add-tag">
-        <input type="text" id="new-tag-name" placeholder="新标签名称..." maxlength="20">
-        <input type="color" id="new-tag-color" value="#6c5ce7" style="width:32px;height:32px;padding:2px;border:1px solid var(--border);border-radius:8px;background:var(--surface);cursor:pointer">
-        <button class="btn-add" onclick="createTag()">＋</button>
-      </div>
-    </div>
 
-    <!-- Video Grid -->
-    <div class="grid-area" id="grid-area">
-      <div class="grid" id="video-grid"></div>
-      <div class="load-more" id="load-more" style="display:none">
-        <button class="btn-load" onclick="loadMore()">加载更多</button>
-      </div>
-      <div class="empty-state" id="empty-state" style="display:none">
-        <div class="icon">📭</div>
-        <div class="msg">还没有视频</div>
-        <div class="sub">点击右上角「同步」从B站获取稍后再看列表</div>
-      </div>
-    </div>
-  </div>
-</div>
+        <!-- Main Page -->
+        <div id="main-page" class="page">
+            <!-- Top Bar -->
+            <div class="topbar">
+                <div class="logo"><span>稍后</span>再看</div>
+                <div class="search-box">
+                    <span class="icon">🔍</span>
+                    <input
+                        type="text"
+                        id="search-input"
+                        placeholder="搜索标题或UP主..."
+                    />
+                </div>
+                <select class="sort-select" id="sort-select">
+                    <option value="added">最近添加</option>
+                    <option value="title">标题 A-Z</option>
+                    <option value="author">UP主 A-Z</option>
+                </select>
+                <button class="btn btn-sync" onclick="doSync()">🔄 同步</button>
+                <div class="spacer"></div>
+                <span class="user-name" id="user-name-display"></span>
+                <button class="btn btn-logout" onclick="doLogout()">
+                    登出
+                </button>
+            </div>
 
-<!-- Delete Confirm Modal -->
-<div class="modal-overlay" id="delete-modal">
-  <div class="modal">
-    <h3>确认删除</h3>
-    <p style="color:var(--text2);margin-bottom:20px" id="delete-modal-title"></p>
-    <div class="btn-row">
-      <button class="btn btn-cancel" onclick="closeModal('delete-modal')">取消</button>
-      <button class="btn btn-danger" id="delete-confirm-btn">删除</button>
-    </div>
-  </div>
-</div>
+            <!-- Main Content -->
+            <div class="main-content">
+                <!-- Sidebar -->
+                <div class="sidebar">
+                    <div class="stats">
+                        <div class="stat">
+                            <div class="num" id="stat-total">0</div>
+                            <div class="lbl">稍后再看</div>
+                        </div>
+                        <div class="stat">
+                            <div class="num" id="stat-watched">0</div>
+                            <div class="lbl">已观看</div>
+                        </div>
+                        <div class="stat">
+                            <div class="num" id="stat-tags">0</div>
+                            <div class="lbl">标签</div>
+                        </div>
+                    </div>
+                    <div class="tag-list" id="tag-list">
+                        <div
+                            class="tag-item active"
+                            data-tag=""
+                            onclick="selectTag(this, '')"
+                        >
+                            <span
+                                class="dot"
+                                style="background: var(--pink)"
+                            ></span>
+                            <span class="tag-name">全部</span>
+                            <span class="count" id="count-all">0</span>
+                        </div>
+                    </div>
+                    <div class="add-tag">
+                        <input
+                            type="text"
+                            id="new-tag-name"
+                            placeholder="新标签名称..."
+                            maxlength="20"
+                        />
+                        <input
+                            type="color"
+                            id="new-tag-color"
+                            value="#6c5ce7"
+                            style="
+                                width: 32px;
+                                height: 32px;
+                                padding: 2px;
+                                border: 1px solid var(--border);
+                                border-radius: 8px;
+                                background: var(--surface);
+                                cursor: pointer;
+                            "
+                        />
+                        <button class="btn-add" onclick="createTag()">
+                            ＋
+                        </button>
+                    </div>
+                </div>
 
-<!-- Tag Assign Modal -->
-<div class="modal-overlay" id="tag-modal">
-  <div class="modal">
-    <h3>管理标签</h3>
-    <p style="color:var(--text2);margin-bottom:4px;font-size:13px" id="tag-modal-title"></p>
-    <div class="tag-select" id="tag-select-list"></div>
-    <div class="btn-row">
-      <button class="btn btn-cancel" onclick="closeModal('tag-modal')">关闭</button>
-    </div>
-  </div>
-</div>
+                <!-- Video Grid -->
+                <div class="grid-area" id="grid-area">
+                    <div class="grid" id="video-grid"></div>
+                    <div class="load-more" id="load-more" style="display: none">
+                        <button class="btn-load" onclick="loadMore()">
+                            加载更多
+                        </button>
+                    </div>
+                    <div
+                        class="empty-state"
+                        id="empty-state"
+                        style="display: none"
+                    >
+                        <div class="icon">📭</div>
+                        <div class="msg">还没有视频</div>
+                        <div class="sub">
+                            点击右上角「同步」从B站获取稍后再看列表
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-<!-- Toast Container -->
-<div class="toast-container" id="toast-container"></div>
+        <!-- Delete Confirm Modal -->
+        <div class="modal-overlay" id="delete-modal">
+            <div class="modal">
+                <h3>确认删除</h3>
+                <p
+                    style="color: var(--text2); margin-bottom: 20px"
+                    id="delete-modal-title"
+                ></p>
+                <div class="btn-row">
+                    <button
+                        class="btn btn-cancel"
+                        onclick="closeModal('delete-modal')"
+                    >
+                        取消
+                    </button>
+                    <button class="btn btn-danger" id="delete-confirm-btn">
+                        删除
+                    </button>
+                </div>
+            </div>
+        </div>
 
-<!-- Eel -->
-<script type="text/javascript" src="/eel.js"></script>
+        <!-- Tag Assign Modal -->
+        <div class="modal-overlay" id="tag-modal">
+            <div class="modal">
+                <h3>管理标签</h3>
+                <p
+                    style="
+                        color: var(--text2);
+                        margin-bottom: 4px;
+                        font-size: 13px;
+                    "
+                    id="tag-modal-title"
+                ></p>
+                <div class="tag-select" id="tag-select-list"></div>
+                <div class="btn-row">
+                    <button
+                        class="btn btn-cancel"
+                        onclick="closeModal('tag-modal')"
+                    >
+                        关闭
+                    </button>
+                </div>
+            </div>
+        </div>
 
-<script>
-/* ── State ── */
-let currentTag = null;
-let currentPage = 1;
-let totalPages = 1;
-let currentSort = 'added';
-let selectedVidAid = null;
-let selectedVidBvid = null;
-let allTags = [];
+        <!-- Toast Container -->
+        <div class="toast-container" id="toast-container"></div>
 
-/* ── Init ── */
-eel.expose(noop); function noop(){}
-window.addEventListener('load', async () => {
-  try {
-    const status = await eel.check_login_status()();
-    if (status.logged_in) {
-      showMainPage(status);
-    } else {
-      showLoginPage();
-    }
-  } catch(e) {
-    showLoginPage();
-  }
-});
+        <!-- Eel -->
+        <script type="text/javascript" src="/eel.js"></script>
 
-/* ── Login ── */
-async function showLoginPage() {
-  document.getElementById('login-page').classList.add('active');
-  document.getElementById('main-page').classList.remove('active');
-  refreshQR();
-}
-
-let qrPollTimer = null;
-
-async function refreshQR() {
-  const img = document.getElementById('qr-img');
-  const expired = document.getElementById('qr-expired');
-  const status = document.getElementById('qr-status');
-  img.style.display = 'none';
-  expired.classList.remove('show');
-  status.textContent = '正在生成二维码...';
-  status.className = 'status-text';
-
-  if (qrPollTimer) clearInterval(qrPollTimer);
-  await eel.cancel_qr()();
-
-  const res = await eel.generate_qr()();
-  if (!res.ok) {
-    status.textContent = '生成失败: ' + res.error;
-    status.className = 'status-text error';
-    return;
-  }
-  img.src = res.qr_image;
-  img.style.display = 'block';
-  status.textContent = '请使用B站客户端扫描二维码';
-  status.className = 'status-text';
-
-  qrPollTimer = setInterval(async () => {
-    const r = await eel.check_qr_state()();
-    if (r.state === 'scanned') {
-      status.textContent = '已扫码，请在手机上确认...';
-    } else if (r.state === 'confirmed') {
-      status.textContent = '已确认，正在登录...';
-    } else if (r.state === 'expired') {
-      status.textContent = '二维码已过期';
-      status.className = 'status-text error';
-      expired.classList.add('show');
-      clearInterval(qrPollTimer);
-    } else if (r.state === 'done') {
-      status.textContent = '登录成功！';
-      status.className = 'status-text done';
-      clearInterval(qrPollTimer);
-      setTimeout(() => showMainPage({user_name: r.user_name, stats: r.stats}), 800);
-    }
-  }, 2000);
-}
-
-/* ── Main Page Transition ── */
-let currentUser = '';
-
-async function showMainPage(data) {
-  document.getElementById('login-page').classList.remove('active');
-  document.getElementById('main-page').classList.add('active');
-  currentUser = data.user_name;
-  document.getElementById('user-name-display').textContent = '👤 ' + data.user_name;
-  updateStats(data.stats);
-  await loadTags();
-  await loadVideos();
-}
-
-function updateStats(s) {
-  document.getElementById('stat-total').textContent = s.total;
-  document.getElementById('stat-watched').textContent = s.watched;
-  document.getElementById('stat-tags').textContent = s.tags;
-  document.getElementById('count-all').textContent = s.total;
-}
-
-/* ── Tags ── */
-async function loadTags() {
-  allTags = await eel.list_tags_gui()();
-  const tagList = document.getElementById('tag-list');
-  // Remove old tag items (keep first "全部")
-  tagList.querySelectorAll('.tag-item:not(:first-child)').forEach(el => el.remove());
-
-  allTags.forEach(t => {
-    const div = document.createElement('div');
-    div.className = 'tag-item';
-    div.dataset.tag = t.name;
-    div.innerHTML = `
-      <span class="dot" style="background:${t.color}"></span>
-      <span class="tag-name">${esc(t.name)}</span>
-      <span class="count">${t.video_count}</span>
-      <span class="del-tag" onclick="event.stopPropagation();deleteTag('${esc(t.name)}')">×</span>
-    `;
-    div.onclick = () => selectTag(div, t.name);
-    tagList.appendChild(div);
-  });
-}
-
-function selectTag(el, tagName) {
-  document.querySelectorAll('.sidebar .tag-item').forEach(i => i.classList.remove('active'));
-  el.classList.add('active');
-  currentTag = tagName || null;
-  currentPage = 1;
-  document.getElementById('search-input').value = '';
-  loadVideos();
-}
-
-async function createTag() {
-  const nameInput = document.getElementById('new-tag-name');
-  const colorInput = document.getElementById('new-tag-color');
-  const name = nameInput.value.trim();
-  if (!name) return;
-  const res = await eel.add_tag_gui(name, colorInput.value)();
-  if (res.ok) {
-    nameInput.value = '';
-    toast('标签已创建: ' + name, 'success');
-    await loadTags();
-    const s = await eel.get_stats()();
-    updateStats(s);
-  } else {
-    toast(res.error || '创建失败', 'error');
-  }
-}
-
-async function deleteTag(name) {
-  if (!confirm('删除标签 \"' + name + '\"？')) return;
-  const res = await eel.remove_tag_gui(name)();
-  if (res.ok) {
-    toast('已删除标签: ' + name, 'success');
-    await loadTags();
-    await loadVideos();
-  }
-}
-
-/* ── Videos ── */
-async function loadVideos(append = false) {
-  const grid = document.getElementById('video-grid');
-  const empty = document.getElementById('empty-state');
-  const loadMore = document.getElementById('load-more');
-
-  if (!append) {
-    grid.innerHTML = '';
-    empty.style.display = 'none';
-    loadMore.style.display = 'none';
-  }
-
-  const data = await eel.list_videos_gui(currentTag, currentPage, 24, currentSort)();
-  totalPages = data.total_pages;
-
-  if (data.videos.length === 0 && !append) {
-    empty.style.display = 'flex';
-    return;
-  }
-
-  data.videos.forEach(v => renderCard(v, append));
-  loadMore.style.display = currentPage < totalPages ? 'flex' : 'none';
-}
-
-function renderCard(v, append) {
-  const grid = document.getElementById('video-grid');
-  const card = document.createElement('div');
-  card.className = 'video-card';
-  card.dataset.aid = v.aid;
-  card.dataset.bvid = v.bvid;
-
-  const tagsHtml = (v.tag_list || '').split(', ').filter(Boolean).map(tn => {
-    const t = allTags.find(at => at.name === tn);
-    const color = t ? t.color : '#6c5ce7';
-    return `<span class="chip" style="background:${color}">${esc(tn)}</span>`;
-  }).join('');
-
-  card.innerHTML = `
-    <div class="cover">
-      <img src="${esc(v.cover_url || '')}" loading="lazy" onerror="this.style.display='none'"
-           referrerpolicy="no-referrer">
-      <div class="duration">${v.duration_str}</div>
-      <div class="actions-overlay">
-        <button class="act-btn" title="观看" onclick="event.stopPropagation();doWatch('${v.bvid}')">▶</button>
-        <button class="act-btn tag" title="标签" onclick="event.stopPropagation();openTagModal(${v.aid},'${v.bvid}','${esc(v.title).replace(/'/g,"\\'")}')">🏷</button>
-        <button class="act-btn del" title="删除" onclick="event.stopPropagation();openDeleteModal(${v.aid},'${v.bvid}','${esc(v.title).replace(/'/g,"\\'")}')">🗑</button>
-      </div>
-    </div>
-    <div class="info">
-      <div class="title">${esc(v.title)}</div>
-      <div class="author">${esc(v.author_name || '')}</div>
-      <div class="tag-chips">${tagsHtml}</div>
-      <div class="bvid">${v.bvid}</div>
-    </div>
-  `;
-  card.onclick = () => doWatch(v.bvid);
-  grid.appendChild(card);
-}
-
-function loadMore() {
-  currentPage++;
-  loadVideos(true);
-}
-
-/* ── Search ── */
-let searchTimer = null;
-document.getElementById('search-input').addEventListener('input', async function() {
-  clearTimeout(searchTimer);
-  const q = this.value.trim();
-  searchTimer = setTimeout(async () => {
-    if (!q) {
-      currentPage = 1;
-      return loadVideos();
-    }
-    const data = await eel.search_videos_gui(q)();
-    const grid = document.getElementById('video-grid');
-    grid.innerHTML = '';
-    const empty = document.getElementById('empty-state');
-    const loadMore = document.getElementById('load-more');
-    loadMore.style.display = 'none';
-    if (data.videos.length === 0) {
-      empty.style.display = 'flex';
-      empty.querySelector('.msg').textContent = '未找到匹配的视频';
-      empty.querySelector('.sub').textContent = '试试其他关键词';
-      return;
-    }
-    empty.style.display = 'none';
-    data.videos.forEach(v => renderCard(v, false));
-  }, 300);
-});
-
-/* ── Sort ── */
-document.getElementById('sort-select').addEventListener('change', function() {
-  currentSort = this.value;
-  currentPage = 1;
-  loadVideos();
-});
-
-/* ── Sync ── */
-async function doSync() {
-  const btn = document.querySelector('.btn-sync');
-  btn.innerHTML = '⏳ 同步中...';
-  btn.disabled = true;
-  try {
-    const res = await eel.do_sync()();
-    if (res.ok) {
-      toast('同步完成，共 ' + res.count + ' 个视频', 'success');
-      updateStats(res.stats);
-      currentPage = 1;
-      await loadTags();
-      await loadVideos();
-    } else {
-      toast(res.error || '同步失败', 'error');
-    }
-  } catch(e) {
-    toast('同步出错: ' + e, 'error');
-  }
-  btn.innerHTML = '🔄 同步';
-  btn.disabled = false;
-}
-
-/* ── Watch ── */
-async function doWatch(bvid) {
-  await eel.watch_video(bvid)();
-  // Show a small prompt-like behavior: after opening, ask about delete
-  if (confirm('在浏览器中打开了视频。\n看完后是否从稍后再看中删除？')) {
-    const res = await eel.delete_video(bvid)();
-    if (res.ok) {
-      toast('已删除', 'success');
-      removeCard(bvid);
-      updateStats(res.stats);
-      const s = await eel.get_stats()();
-      document.getElementById('count-all').textContent = s.total;
-    }
-  }
-}
-
-/* ── Delete ── */
-function openDeleteModal(aid, bvid, title) {
-  selectedVidAid = aid;
-  selectedVidBvid = bvid;
-  document.getElementById('delete-modal-title').textContent = '从稍后再看删除: ' + title + '？';
-  document.getElementById('delete-modal').classList.add('show');
-  document.getElementById('delete-confirm-btn').onclick = confirmDelete;
-}
-
-async function confirmDelete() {
-  closeModal('delete-modal');
-  const res = await eel.delete_video(selectedVidBvid)();
-  if (res.ok) {
-    toast('已删除', 'success');
-    removeCard(selectedVidBvid);
-    updateStats(res.stats);
-    const s = await eel.get_stats()();
-    document.getElementById('count-all').textContent = s.total;
-    await loadTags();
-  } else {
-    toast(res.error || '删除失败', 'error');
-  }
-}
-
-function removeCard(bvid) {
-  const card = document.querySelector(`.video-card[data-bvid="${bvid}"]`);
-  if (card) {
-    card.style.transition = 'opacity 0.3s, transform 0.3s';
-    card.style.opacity = '0';
-    card.style.transform = 'scale(0.8)';
-    setTimeout(() => card.remove(), 300);
-  }
-}
-
-/* ── Tag Modal ── */
-async function openTagModal(aid, bvid, title) {
-  selectedVidAid = aid;
-  selectedVidBvid = bvid;
-  document.getElementById('tag-modal-title').textContent = title;
-  const list = document.getElementById('tag-select-list');
-  list.innerHTML = '';
-
-  allTags = await eel.list_tags_gui()();
-  const vtags = await eel.get_video_detail_gui(bvid)();
-  const activeTagNames = (vtags && vtags.tags) ? vtags.tags.map(t => t.name) : [];
-
-  allTags.forEach(t => {
-    const span = document.createElement('span');
-    span.className = 'tag-opt' + (activeTagNames.includes(t.name) ? ' on' : '');
-    span.textContent = t.name;
-    span.style.borderColor = t.color;
-    span.onclick = async function() {
-      if (this.classList.contains('on')) {
-        const r = await eel.unassign_tag_gui(aid, t.name)();
-        if (r.ok) { this.classList.remove('on'); toast('已移除标签: ' + t.name, 'info'); }
-      } else {
-        const r = await eel.assign_tag_gui(aid, t.name)();
-        if (r.ok) { this.classList.add('on'); toast('已打标签: ' + t.name, 'success'); }
-      }
-      updateCardTags(bvid);
-    };
-    list.appendChild(span);
-  });
-
-  document.getElementById('tag-modal').classList.add('show');
-}
-
-async function updateCardTags(bvid) {
-  const vt = await eel.get_video_detail_gui(bvid)();
-  if (!vt) return;
-  const card = document.querySelector(`.video-card[data-bvid="${bvid}"]`);
-  if (!card) return;
-  const chipsDiv = card.querySelector('.tag-chips');
-  const tags = vt.tags || [];
-  chipsDiv.innerHTML = tags.map(t => {
-    return `<span class="chip" style="background:${t.color}">${esc(t.name)}</span>`;
-  }).join('');
-  await loadTags();
-}
-
-/* ── Logout ── */
-async function doLogout() {
-  await eel.do_logout_gui()();
-  currentPage = 1;
-  showLoginPage();
-}
-
-/* ── Modal ── */
-function closeModal(id) {
-  document.getElementById(id).classList.remove('show');
-}
-
-/* ── Toast ── */
-function toast(msg, type = 'info') {
-  const container = document.getElementById('toast-container');
-  const el = document.createElement('div');
-  el.className = 'toast ' + type;
-  el.textContent = msg;
-  container.appendChild(el);
-  setTimeout(() => {
-    el.style.animation = 'fadeOut 0.3s ease-out forwards';
-    setTimeout(() => el.remove(), 300);
-  }, 3000);
-}
-
-/* ── Helpers ── */
-function esc(s) {
-  if (!s) return '';
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-/* ── Keyboard ── */
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') {
-    document.querySelectorAll('.modal-overlay.show').forEach(m => m.classList.remove('show'));
-  }
-});
-</script>
-</body>
+        <!-- ui -->
+        <script type="text/javascript" src="/mainui.js"></script>
+    </body>
 </html>
