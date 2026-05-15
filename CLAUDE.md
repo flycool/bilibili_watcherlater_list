@@ -37,16 +37,16 @@ python app.py                     # Launch desktop app (Chrome/Edge window, 1280
 │  main.py (CLI/typer)    app.py (GUI/Eel)    │
 │       │                      │               │
 │  cli/auth_commands.py    web/index.html     │
-│  cli/list_commands.py   (Eel JS bridge)     │
-│  cli/tag_commands.py                        │
+│  cli/list_commands.py   web/mainui.js       │
+│  cli/tag_commands.py    web/style.css       │
 │  cli/watch_commands.py                      │
 └──────────────┬──────────────────────────────┘
                │  (all sync calls — asyncio.run handled internally)
 ┌──────────────▼──────────────────────────────┐
 │           Business Logic                     │
-│  auth.py    api.py    tags.py               │
-│  (QR login, (Bilibili (tag validation)      │
-│   credential API wrappers)                   │
+│  auth.py    api.py                           │
+│  (QR login, (Bilibili API wrappers)          │
+│   credential                                 │
 │   mgmt)                                     │
 └──────────────┬──────────────────────────────┘
                │
@@ -65,6 +65,9 @@ python app.py                     # Launch desktop app (Chrome/Edge window, 1280
 - **Soft delete**: `videos.is_watched = 1` instead of DELETE — preserves watch history. Filtered out in list/search queries (`WHERE is_watched = 0`).
 - **QR login differs between CLI and GUI**: `auth.py` uses `QrCodeLogin.get_qrcode_terminal()` (ASCII art for terminal), `app.py` reads `QrCodeLogin.get_qrcode_picture().url` (local PNG file) and base64-encodes it for the web frontend.
 - **db.py uses `dict` rows**: `conn.row_factory = sqlite3.Row`, and all query results are converted to plain dicts before returning.
+- **Windows console encoding**: `main.py` wraps `sys.stdout`/`sys.stderr` in `io.TextIOWrapper` with `encoding="utf-8"` at import time for Chinese character display.
+- **`upsert_video` uses `INSERT ... ON CONFLICT DO UPDATE`**, not `INSERT OR REPLACE`. The latter would DELETE-then-INSERT, triggering `ON DELETE CASCADE` on `video_tags` and silently dropping all tag assignments on sync.
+- **`get_user_name` calls module-level `user.get_self_info(credential)`**, not `user.User(credential=credential).get_self_info()`. The `User` class requires `uid: int` as first argument and does not expose `get_self_info` as a public method.
 
 ## Data model (SQLite, `%APPDATA%/bilibili-watchlater/data.db`)
 

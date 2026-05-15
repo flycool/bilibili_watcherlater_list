@@ -2,16 +2,16 @@ import asyncio
 import base64
 import io
 import sys
-from urllib.request import url2pathname
 from urllib.parse import urlparse
+from urllib.request import url2pathname
 
 import eel
 from bilibili_api import Credential
 from bilibili_api.login_v2 import QrCodeLogin, QrCodeLoginEvents
 
-import db
-import auth
 import api
+import auth
+import db
 
 # QR login session (one at a time)
 _qr_login: QrCodeLogin | None = None
@@ -19,13 +19,18 @@ _qr_login: QrCodeLogin | None = None
 
 # ── Auth ──
 
+
 @eel.expose
 def check_login_status():
     conn = db.get_db()
     c = auth.get_credential_from_db(conn)
     if not c:
         conn.close()
-        return {"logged_in": False, "user_name": "", "stats": {"total": 0, "watched": 0, "tags": 0}}
+        return {
+            "logged_in": False,
+            "user_name": "",
+            "stats": {"total": 0, "watched": 0, "tags": 0},
+        }
     name = auth.get_user_name(c)
     s = db.stats(conn)
     conn.close()
@@ -41,7 +46,7 @@ def generate_qr():
         pic = _qr_login.get_qrcode_picture()
         url = pic.url
         if url.startswith("file://"):
-            path = url2pathname(urlparse(url).path)
+            path = url2pathname(urlparse(url).netloc)
         else:
             path = url
         with open(path, "rb") as f:
@@ -94,6 +99,7 @@ def do_logout_gui():
 
 
 # ── Videos ──
+
 
 @eel.expose
 def do_sync():
@@ -172,6 +178,7 @@ def get_stats():
 
 # ── Tags ──
 
+
 @eel.expose
 def list_tags_gui():
     conn = db.get_db()
@@ -218,9 +225,11 @@ def unassign_tag_gui(aid, tag_name):
 
 # ── Watch / Delete ──
 
+
 @eel.expose
 def watch_video(bvid):
     import webbrowser
+
     webbrowser.open(f"https://www.bilibili.com/video/{bvid}")
     return {"ok": True}
 
