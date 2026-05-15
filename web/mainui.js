@@ -1,4 +1,4 @@
-/* ── State ── */
+﻿/* ── State ── */
 let currentTag = null;
 let currentPage = 1;
 let totalPages = 1;
@@ -220,7 +220,10 @@ function renderCard(v, append) {
     </div>
     <div class="info">
       <div class="title">${esc(v.title)}</div>
-      <div class="author">${esc(v.author_name || "")}</div>
+      <div class="author-row">
+        <span class="author">${esc(v.author_name || "")}</span>
+        <span class="added-date">${fmtDate(v.added_at)}</span>
+      </div>
       <div class="tag-chips">${tagsHtml}</div>
       <div class="bvid">${v.bvid}</div>
     </div>
@@ -425,6 +428,14 @@ function toast(msg, type = "info") {
 }
 
 /* ── Helpers ── */
+function fmtDate(ts) {
+  if (!ts) return "";
+  const d = new Date(ts * 1000);
+  return d.getFullYear() + "-" +
+    String(d.getMonth() + 1).padStart(2, "0") + "-" +
+    String(d.getDate()).padStart(2, "0");
+}
+
 function esc(s) {
   if (!s) return "";
   return String(s)
