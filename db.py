@@ -1,8 +1,10 @@
-import sqlite3
 import os
+import sqlite3
 import time
 
-DATA_DIR = os.path.join(os.environ.get("APPDATA", os.path.expanduser("~")), "bilibili-watchlater")
+DATA_DIR = os.path.join(
+    os.environ.get("APPDATA", os.path.expanduser("~")), "bilibili-watchlater"
+)
 DB_PATH = os.path.join(DATA_DIR, "data.db")
 
 
@@ -58,6 +60,7 @@ def init_schema(conn: sqlite3.Connection) -> None:
 
 # ── Credential CRUD ──
 
+
 def save_credential(conn: sqlite3.Connection, key: str, value: str) -> None:
     conn.execute(
         "INSERT OR REPLACE INTO credential_store (key, value, updated_at) VALUES (?, ?, ?)",
@@ -78,8 +81,10 @@ def clear_credentials(conn: sqlite3.Connection) -> None:
 
 # ── Video CRUD ──
 
+
 def upsert_video(conn: sqlite3.Connection, v: dict) -> None:
-    conn.execute("""
+    conn.execute(
+        """
         INSERT INTO videos (aid, bvid, title, cover_url, duration,
             author_name, author_mid, added_at, ctime, fetched_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -88,22 +93,40 @@ def upsert_video(conn: sqlite3.Connection, v: dict) -> None:
             duration=excluded.duration, author_name=excluded.author_name,
             author_mid=excluded.author_mid, added_at=excluded.added_at,
             ctime=excluded.ctime, fetched_at=excluded.fetched_at
-    """, (
-        v["aid"], v["bvid"], v["title"], v.get("cover_url", ""),
-        v.get("duration", 0), v.get("author_name", ""), v.get("author_mid", 0),
-        v["added_at"], v.get("ctime", 0), int(time.time()),
-    ))
+    """,
+        (
+            v["aid"],
+            v["bvid"],
+            v["title"],
+            v.get("cover_url", ""),
+            v.get("duration", 0),
+            v.get("author_name", ""),
+            v.get("author_mid", 0),
+            v["added_at"],
+            v.get("ctime", 0),
+            int(time.time()),
+        ),
+    )
     conn.commit()
 
 
-def list_videos(conn: sqlite3.Connection, tag: str | None = None,
-                page: int = 1, limit: int = 20, sort: str = "added") -> list:
+def list_videos(
+    conn: sqlite3.Connection,
+    tag: str | None = None,
+    page: int = 1,
+    limit: int = 20,
+    sort: str = "added",
+) -> list:
     offset = (page - 1) * limit
-    order = {"added": "v.added_at DESC", "title": "v.title ASC",
-             "author": "v.author_name ASC"}.get(sort, "v.added_at DESC")
+    order = {
+        "added": "v.added_at DESC",
+        "title": "v.title ASC",
+        "author": "v.author_name ASC",
+    }.get(sort, "v.added_at DESC")
 
     if tag:
-        rows = conn.execute(f"""
+        rows = conn.execute(
+            f"""
             SELECT v.*, GROUP_CONCAT(t.name, ', ') AS tag_list
             FROM videos v
             JOIN video_tags vt ON v.aid = vt.video_aid
@@ -112,9 +135,12 @@ def list_videos(conn: sqlite3.Connection, tag: str | None = None,
             GROUP BY v.aid
             ORDER BY {order}
             LIMIT ? OFFSET ?
-        """, (tag, limit, offset)).fetchall()
+        """,
+            (tag, limit, offset),
+        ).fetchall()
     else:
-        rows = conn.execute(f"""
+        rows = conn.execute(
+            f"""
             SELECT v.*, GROUP_CONCAT(t.name, ', ') AS tag_list
             FROM videos v
             LEFT JOIN video_tags vt ON v.aid = vt.video_aid
@@ -123,18 +149,23 @@ def list_videos(conn: sqlite3.Connection, tag: str | None = None,
             GROUP BY v.aid
             ORDER BY {order}
             LIMIT ? OFFSET ?
-        """, (limit, offset)).fetchall()
+        """,
+            (limit, offset),
+        ).fetchall()
     return [dict(r) for r in rows]
 
 
 def count_videos(conn: sqlite3.Connection, tag: str | None = None) -> int:
     if tag:
-        row = conn.execute("""
+        row = conn.execute(
+            """
             SELECT COUNT(*) AS cnt FROM videos v
             JOIN video_tags vt ON v.aid = vt.video_aid
             JOIN tags t ON vt.tag_id = t.id
             WHERE t.name = ? AND v.is_watched = 0
-        """, (tag,)).fetchone()
+        """,
+            (tag,),
+        ).fetchone()
     else:
         row = conn.execute(
             "SELECT COUNT(*) AS cnt FROM videos WHERE is_watched = 0"
@@ -147,20 +178,30 @@ def get_video(conn: sqlite3.Connection, bvid: str) -> dict | None:
     return dict(row) if row else None
 
 
-def get_video_tags(conn: sqlite3.Connection, aid: int) -> list[dict]:
-    rows = conn.execute("""
-        SELECT t.id, t.name, t.color FROM tags t
-        JOIN video_tags vt ON t.id = vt.tag_id
-        WHERE vt.video_aid = ?
-    """, (aid,)).fetchall()
+def get_videos(conn: sqlite3.Connection) -> list[dict]:
+    rows = conn.execute("SELECT * FROM videos").fetchall()
     return [dict(r) for r in rows]
 
 
-def search_videos(conn: sqlite3.Connection, query: str,
-                  page: int = 1, limit: int = 20) -> list[dict]:
+def get_video_tags(conn: sqlite3.Connection, aid: int) -> list[dict]:
+    rows = conn.execute(
+        """
+        SELECT t.id, t.name, t.color FROM tags t
+        JOIN video_tags vt ON t.id = vt.tag_id
+        WHERE vt.video_aid = ?
+    """,
+        (aid,),
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def search_videos(
+    conn: sqlite3.Connection, query: str, page: int = 1, limit: int = 20
+) -> list[dict]:
     offset = (page - 1) * limit
     pattern = f"%{query}%"
-    rows = conn.execute("""
+    rows = conn.execute(
+        """
         SELECT v.*, GROUP_CONCAT(t.name, ', ') AS tag_list
         FROM videos v
         LEFT JOIN video_tags vt ON v.aid = vt.video_aid
@@ -169,21 +210,31 @@ def search_videos(conn: sqlite3.Connection, query: str,
         GROUP BY v.aid
         ORDER BY v.added_at DESC
         LIMIT ? OFFSET ?
-    """, (pattern, pattern, limit, offset)).fetchall()
+    """,
+        (pattern, pattern, limit, offset),
+    ).fetchall()
     return [dict(r) for r in rows]
 
 
 def search_count(conn: sqlite3.Connection, query: str) -> int:
     pattern = f"%{query}%"
-    row = conn.execute("""
+    row = conn.execute(
+        """
         SELECT COUNT(*) AS cnt FROM videos
         WHERE is_watched = 0 AND (title LIKE ? OR author_name LIKE ?)
-    """, (pattern, pattern)).fetchone()
+    """,
+        (pattern, pattern),
+    ).fetchone()
     return row["cnt"] if row else 0
 
 
 def mark_watched(conn: sqlite3.Connection, aid: int) -> None:
     conn.execute("UPDATE videos SET is_watched = 1 WHERE aid = ?", (aid,))
+    conn.commit()
+
+
+def delete_video(conn: sqlite3.Connection, aid: int) -> None:
+    conn.execute("DELETE FROM videos WHERE aid = ?", (aid,))
     conn.commit()
 
 
@@ -199,6 +250,7 @@ def stats(conn: sqlite3.Connection) -> dict:
 
 
 # ── Tag CRUD ──
+
 
 def add_tag(conn: sqlite3.Connection, name: str, color: str = "#ffffff") -> int:
     cur = conn.execute(
