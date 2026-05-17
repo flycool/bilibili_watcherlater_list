@@ -182,6 +182,7 @@ async function loadVideos(append = false) {
     currentDuration,
   )();
   totalPages = data.total_pages;
+  document.getElementById("count-all").textContent = data.total;
 
   if (data.videos.length === 0 && !append) {
     empty.style.display = "flex";
@@ -257,6 +258,7 @@ document
       const empty = document.getElementById("empty-state");
       const loadMore = document.getElementById("load-more");
       loadMore.style.display = "none";
+      document.getElementById("count-all").textContent = data.total;
       if (data.videos.length === 0) {
         empty.style.display = "flex";
         empty.querySelector(".msg").textContent = "未找到匹配的视频";
