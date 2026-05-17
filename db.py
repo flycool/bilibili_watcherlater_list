@@ -110,12 +110,25 @@ def upsert_video(conn: sqlite3.Connection, v: dict) -> None:
     conn.commit()
 
 
+DURATION_FILTERS = {
+    "under_10": "duration < 600",
+    "10_30": "duration >= 600 AND duration < 1800",
+    "30_60": "duration >= 1800 AND duration < 3600",
+    "over_60": "duration >= 3600",
+}
+
+
+def _duration_clause(duration: str | None) -> str:
+    return DURATION_FILTERS.get(duration or "", "")
+
+
 def list_videos(
     conn: sqlite3.Connection,
     tag: str | None = None,
     page: int = 1,
     limit: int = 20,
     sort: str = "added",
+    duration: str | None = None,
 ) -> list:
     offset = (page - 1) * limit
     order = {
@@ -124,6 +137,9 @@ def list_videos(
         "author": "v.author_name ASC",
     }.get(sort, "v.added_at DESC")
 
+    dur_clause = _duration_clause(duration)
+    extra_where = f" AND {dur_clause}" if dur_clause else ""
+
     if tag:
         rows = conn.execute(
             f"""
@@ -131,7 +147,7 @@ def list_videos(
             FROM videos v
             JOIN video_tags vt ON v.aid = vt.video_aid
             JOIN tags t ON vt.tag_id = t.id
-            WHERE t.name = ? AND v.is_watched = 0
+            WHERE t.name = ? AND v.is_watched = 0{extra_where}
             GROUP BY v.aid
             ORDER BY {order}
             LIMIT ? OFFSET ?
@@ -145,7 +161,7 @@ def list_videos(
             FROM videos v
             LEFT JOIN video_tags vt ON v.aid = vt.video_aid
             LEFT JOIN tags t ON vt.tag_id = t.id
-            WHERE v.is_watched = 0
+            WHERE v.is_watched = 0{extra_where}
             GROUP BY v.aid
             ORDER BY {order}
             LIMIT ? OFFSET ?
@@ -155,20 +171,27 @@ def list_videos(
     return [dict(r) for r in rows]
 
 
-def count_videos(conn: sqlite3.Connection, tag: str | None = None) -> int:
+def count_videos(
+    conn: sqlite3.Connection,
+    tag: str | None = None,
+    duration: str | None = None,
+) -> int:
+    dur_clause = _duration_clause(duration)
+    extra_where = f" AND {dur_clause}" if dur_clause else ""
+
     if tag:
         row = conn.execute(
-            """
+            f"""
             SELECT COUNT(*) AS cnt FROM videos v
             JOIN video_tags vt ON v.aid = vt.video_aid
             JOIN tags t ON vt.tag_id = t.id
-            WHERE t.name = ? AND v.is_watched = 0
+            WHERE t.name = ? AND v.is_watched = 0{extra_where}
         """,
             (tag,),
         ).fetchone()
     else:
         row = conn.execute(
-            "SELECT COUNT(*) AS cnt FROM videos WHERE is_watched = 0"
+            f"SELECT COUNT(*) AS cnt FROM videos WHERE is_watched = 0{extra_where}"
         ).fetchone()
     return row["cnt"] if row else 0
 
@@ -196,17 +219,23 @@ def get_video_tags(conn: sqlite3.Connection, aid: int) -> list[dict]:
 
 
 def search_videos(
-    conn: sqlite3.Connection, query: str, page: int = 1, limit: int = 20
+    conn: sqlite3.Connection,
+    query: str,
+    page: int = 1,
+    limit: int = 20,
+    duration: str | None = None,
 ) -> list[dict]:
     offset = (page - 1) * limit
     pattern = f"%{query}%"
+    dur_clause = _duration_clause(duration)
+    extra_where = f" AND {dur_clause}" if dur_clause else ""
     rows = conn.execute(
-        """
+        f"""
         SELECT v.*, GROUP_CONCAT(t.name, ', ') AS tag_list
         FROM videos v
         LEFT JOIN video_tags vt ON v.aid = vt.video_aid
         LEFT JOIN tags t ON vt.tag_id = t.id
-        WHERE v.is_watched = 0 AND (v.title LIKE ? OR v.author_name LIKE ?)
+        WHERE v.is_watched = 0 AND (v.title LIKE ? OR v.author_name LIKE ?){extra_where}
         GROUP BY v.aid
         ORDER BY v.added_at DESC
         LIMIT ? OFFSET ?
@@ -216,12 +245,18 @@ def search_videos(
     return [dict(r) for r in rows]
 
 
-def search_count(conn: sqlite3.Connection, query: str) -> int:
+def search_count(
+    conn: sqlite3.Connection,
+    query: str,
+    duration: str | None = None,
+) -> int:
     pattern = f"%{query}%"
+    dur_clause = _duration_clause(duration)
+    extra_where = f" AND {dur_clause}" if dur_clause else ""
     row = conn.execute(
-        """
+        f"""
         SELECT COUNT(*) AS cnt FROM videos
-        WHERE is_watched = 0 AND (title LIKE ? OR author_name LIKE ?)
+        WHERE is_watched = 0 AND (title LIKE ? OR author_name LIKE ?){extra_where}
     """,
         (pattern, pattern),
     ).fetchone()

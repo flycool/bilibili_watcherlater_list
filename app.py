@@ -121,10 +121,10 @@ def do_sync():
 
 
 @eel.expose
-def list_videos_gui(tag=None, page=1, limit=24, sort="added"):
+def list_videos_gui(tag=None, page=1, limit=24, sort="added", duration=None):
     conn = db.get_db()
-    videos = db.list_videos(conn, tag=tag, page=page, limit=limit, sort=sort)
-    total = db.count_videos(conn, tag=tag)
+    videos = db.list_videos(conn, tag=tag, page=page, limit=limit, sort=sort, duration=duration)
+    total = db.count_videos(conn, tag=tag, duration=duration)
     conn.close()
     for v in videos:
         if v.get("duration"):
@@ -140,10 +140,10 @@ def list_videos_gui(tag=None, page=1, limit=24, sort="added"):
 
 
 @eel.expose
-def search_videos_gui(query):
+def search_videos_gui(query, duration=None):
     conn = db.get_db()
-    videos = db.search_videos(conn, query)
-    total = db.search_count(conn, query)
+    videos = db.search_videos(conn, query, duration=duration)
+    total = db.search_count(conn, query, duration=duration)
     conn.close()
     for v in videos:
         if v.get("duration"):
@@ -260,4 +260,4 @@ def delete_video(bvid):
 
 if __name__ == "__main__":
     eel.init("web")
-    eel.start("index.html", mode="chrome", size=(1280, 820))
+    eel.start("index.html", mode="chrome", size=(1280, 820), port=8888)

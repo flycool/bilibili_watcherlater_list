@@ -3,6 +3,7 @@ let currentTag = null;
 let currentPage = 1;
 let totalPages = 1;
 let currentSort = "added";
+let currentDuration = "";
 let selectedVidAid = null;
 let selectedVidBvid = null;
 let allTags = [];
@@ -178,6 +179,7 @@ async function loadVideos(append = false) {
     currentPage,
     24,
     currentSort,
+    currentDuration,
   )();
   totalPages = data.total_pages;
 
@@ -249,7 +251,7 @@ document
         currentPage = 1;
         return loadVideos();
       }
-      const data = await eel.search_videos_gui(q)();
+      const data = await eel.search_videos_gui(q, currentDuration)();
       const grid = document.getElementById("video-grid");
       grid.innerHTML = "";
       const empty = document.getElementById("empty-state");
@@ -269,6 +271,13 @@ document
 /* ── Sort ── */
 document.getElementById("sort-select").addEventListener("change", function () {
   currentSort = this.value;
+  currentPage = 1;
+  loadVideos();
+});
+
+/* ── Duration Filter ── */
+document.getElementById("duration-select").addEventListener("change", function () {
+  currentDuration = this.value;
   currentPage = 1;
   loadVideos();
 });
