@@ -309,7 +309,7 @@ def get_tag(conn: sqlite3.Connection, name: str) -> dict | None:
 
 def list_tags(conn: sqlite3.Connection) -> list[dict]:
     rows = conn.execute("""
-        SELECT t.*, COUNT(vt.video_aid) AS video_count
+        SELECT t.*, COUNT(v.aid) AS video_count
         FROM tags t
         LEFT JOIN video_tags vt ON t.id = vt.tag_id
         LEFT JOIN videos v ON vt.video_aid = v.aid AND v.is_watched = 0
