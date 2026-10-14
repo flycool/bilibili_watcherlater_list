@@ -1,20 +1,14 @@
-import asyncio
-import base64
 import io
 import sys
-from urllib.parse import urlparse
-from urllib.request import url2pathname
 
 import eel
-from bilibili_api import Credential
-from bilibili_api.login_v2 import QrCodeLogin, QrCodeLoginEvents
 
 import api
 import auth
 import db
 
 # QR login session (one at a time)
-_qr_login: QrCodeLogin | None = None
+_qr_session: auth.QrLoginSession | None = None
 
 
 # ── Auth ──
@@ -39,55 +33,47 @@ def check_login_status():
 
 @eel.expose
 def generate_qr():
-    global _qr_login
+    global _qr_session
     try:
-        _qr_login = QrCodeLogin()
-        asyncio.run(_qr_login.generate_qrcode())
-        pic = _qr_login.get_qrcode_picture()
-        url = pic.url
-        if url.startswith("file://"):
-            path = url2pathname(urlparse(url).netloc)
-        else:
-            path = url
-        with open(path, "rb") as f:
-            b64 = base64.b64encode(f.read()).decode()
-        return {"ok": True, "qr_image": f"data:image/png;base64,{b64}"}
+        _qr_session = auth.QrLoginSession()
+        _qr_session.generate()
+        image = auth.qrcode_png_base64(_qr_session.link)
+        return {"ok": True, "qr_image": f"data:image/png;base64,{image}"}
     except Exception as e:
+        _qr_session = None
         return {"ok": False, "error": str(e)}
 
 
 @eel.expose
 def check_qr_state():
-    global _qr_login
-    if not _qr_login:
+    global _qr_session
+    if not _qr_session:
         return {"state": "idle"}
     try:
-        event = asyncio.run(_qr_login.check_state())
-        if event == QrCodeLoginEvents.SCAN:
-            return {"state": "scanned"}
-        elif event == QrCodeLoginEvents.CONF:
-            return {"state": "confirmed"}
-        elif event == QrCodeLoginEvents.TIMEOUT:
-            return {"state": "expired"}
-        elif event == QrCodeLoginEvents.DONE:
-            credential = _qr_login.get_credential()
-            conn = db.get_db()
-            auth.persist_credential(conn, credential)
-            name = auth.get_user_name(credential)
-            s = db.stats(conn)
-            conn.close()
-            _qr_login = None
-            return {"state": "done", "user_name": name, "stats": s}
-        else:
-            return {"state": "waiting"}
+        state = _qr_session.check()
+    except auth.LoginFailed as e:
+        _qr_session = None
+        return {"state": "error", "error": str(e)}
     except Exception as e:
         return {"state": "waiting", "debug": str(e)}
+    if state is not auth.QrState.DONE:
+        return {"state": state.value}
+    credential = _qr_session.credential
+    conn = db.get_db()
+    try:
+        auth.persist_credential(conn, credential)
+        name = auth.get_user_name(credential)
+        s = db.stats(conn)
+    finally:
+        conn.close()
+    _qr_session = None
+    return {"state": "done", "user_name": name, "stats": s}
 
 
 @eel.expose
 def cancel_qr():
-    global _qr_login
-    _qr_login = None
+    global _qr_session
+    _qr_session = None
 
 
 @eel.expose

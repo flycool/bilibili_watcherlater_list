@@ -60,10 +60,13 @@ async function refreshQR() {
     const r = await eel.check_qr_state()();
     if (r.state === "scanned") {
       status.textContent = "已扫码，请在手机上确认...";
-    } else if (r.state === "confirmed") {
-      status.textContent = "已确认，正在登录...";
     } else if (r.state === "expired") {
       status.textContent = "二维码已过期";
+      status.className = "status-text error";
+      expired.classList.add("show");
+      clearInterval(qrPollTimer);
+    } else if (r.state === "error") {
+      status.textContent = "登录失败: " + r.error;
       status.className = "status-text error";
       expired.classList.add("show");
       clearInterval(qrPollTimer);

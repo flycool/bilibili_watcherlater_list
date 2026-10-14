@@ -7,6 +7,9 @@ dependencies = [
     "typer>=0.15",
     "rich>=13",
     "qrcode>=7.4",
+    "qrcode-terminal>=0.8",
+    "eel>=0.18.2",
+    "aiohttp>=3.14.5",
 ]
 
 [project.scripts]
